@@ -1,0 +1,37 @@
+@charset "utf-8";
+/* CSS Document */
+/* Main Container for Books */
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    /* Individual Book Card */
+    .book-card {
+      width: 200px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      text-align: center;
+      border-radius: 4px;
+      box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .book-card img {
+      width: 100px;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .book-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.1em;
+    }
+    .book-card a {
+      text-decoration: none;
+      color: #333;
+    }
+    .book-card p {
+      margin: 0;
+      font-size: 0.9em;
+    }

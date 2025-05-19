@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Finder and Recommendations</title>
+  <!-- Google Fonts and Bootstrap CSS -->
+  <link href="https://fonts.googleapis.com/css?family=Righteous" rel="stylesheet" defer>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" 
+        integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" 
+        crossorigin="anonymous">
+  <!-- Load Google Books Embedded Viewer API (not used on this page) -->
+  <script src="https://www.google.com/books/jsapi.js"></script>
+  <style>
+    /* General Page Styles */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: cornflowerblue;
+      margin: 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: 2em;
+    }
+    /* Book Card Styles */
+    .book-card {
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      text-align: center;
+      border-radius: 4px;
+      box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    .book-card img {
+      width: 100px;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .book-card h3 {
+      font-size: 1.1em;
+      margin-bottom: 10px;
+    }
+    .book-card a {
+      text-decoration: none;
+      color: #333;
+    }
+    .book-card p {
+      font-size: 0.9em;
+      margin: 0;
+    }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.8em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header and Search Section -->
+    <header>
+      <h1 id="header" class="mt-5">Book Finder</h1>
+      <div class="row justify-content-center my-3">
+        <div id="input" class="input-group col-lg-6 col-md-8 col-sm-12">
+          <input id="search-box" type="text" class="form-control" placeholder="Search Books!">
+          <div class="input-group-append">
+            <button id="search" class="btn btn-primary">Search</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Search Results Section -->
+    <section id="searchSection" class="mb-4">
+      <h2 class="text-center">Search Results</h2>
+      <div id="searchResults" class="row">
+        <!-- Search result book cards will be injected here via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Random Recommendations Section -->
+    <section id="recommendationsSection" class="mb-4">
+      <h2 class="text-center">Random Fun Recommendations</h2>
+      <div id="recommendations" class="row">
+        <!-- Recommendation book cards will be injected here via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Footer Section -->
+    <footer>
+      &copy; 2025 Book Finder
+    </footer>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.1.0.js" defer></script>
+  <script>
+  // -------------------------------
+  // Helper function to extract ISBN from a book's info.
+  function getBookISBN(info) {
+    if (info.industryIdentifiers && info.industryIdentifiers.length > 0) {
+      // Prefer ISBN_13 if available.
+      for (let identifier of info.industryIdentifiers) {
+        if (identifier.type === "ISBN_13") {
+          return identifier.identifier;
+        }
+      }
+      // Fall back to the first identifier.
+      return info.industryIdentifiers[0].identifier;
+    }
+    return null;
+  }
+
+  /* ---------------------------------------------
+     FUNCTION: getRandomFunQuery
+     Returns a query built from two random "fun" keywords plus random letters.
+  --------------------------------------------- */
+  function getRandomFunQuery() {
+    const funKeywords = [
+      "fun", "lighthearted", "comedy", "silly", "quirky", 
+      "whimsical", "playful", "happy", "imaginative", "adventure", 
+      "mystery", "fantasy", "space", "ocean", "Movie"
+    ];
+    // Shuffle and pick two keywords.
+    const shuffledKeywords = funKeywords.sort(() => Math.random() - 0.5);
+    const selectedKeywords = shuffledKeywords.slice(0, 2);
+    const randomLetters = Math.random().toString(36).substring(2, 5);
+    return selectedKeywords.join(" ") + " " + randomLetters;
+  }
+
+  /* ---------------------------------------------
+     FUNCTION: isBlacklisted
+     Checks if a book contains any blacklisted content.
+  --------------------------------------------- */
+  function isBlacklisted(book) {
+    const blacklist = [
+      "politics", "political", "dark", "biography", "biographies", 
+      "studies", "encyclopedia", "encyclopedias", "science", "grammar", 
+      "vocabulary", "poetry", "dictionary", "sex", "Maths", "Computers", 
+      "Coding", "Goverment", "Medical", "textbook", "Engineering", "Nuclear"
+    ];
+    const title = (book.volumeInfo.title || "").toLowerCase();
+    const description = (book.volumeInfo.description || "").toLowerCase();
+    const categories = book.volumeInfo.categories ? book.volumeInfo.categories.join(" ").toLowerCase() : "";
+    return blacklist.some(keyword =>
+      title.includes(keyword.toLowerCase()) ||
+      description.includes(keyword.toLowerCase()) ||
+      categories.includes(keyword.toLowerCase())
+    );
+  }
+
+  /* ---------------------------------------------
+     FUNCTION: getPrimaryCategory
+     Returns the first category of a book, or "unknown" if none exists.
+  --------------------------------------------- */
+  function getPrimaryCategory(book) {
+    if (book.volumeInfo.categories && book.volumeInfo.categories.length > 0) {
+      return book.volumeInfo.categories[0].toLowerCase();
+    }
+    return "unknown";
+  }
+
+  /* ---------------------------------------------
+     FUNCTION: getDiverseSelection
+     Chooses a diverse array of books by selecting those with unique primary categories.
+  --------------------------------------------- */
+  function getDiverseSelection(books, count) {
+    let selected = [];
+    const usedCategories = new Set();
+    // First pass: choose books with unique categories.
+    for (const book of books) {
+      const category = getPrimaryCategory(book);
+      if (!usedCategories.has(category)) {
+        selected.push(book);
+        usedCategories.add(category);
+      }
+      if (selected.length === count) break;
+    }
+    // Second pass: fill remaining slots.
+    if (selected.length < count) {
+      for (const book of books) {
+        if (!selected.includes(book)) {
+          selected.push(book);
+          if (selected.length === count) break;
+        }
+      }
+    }
+    return selected;
+  }
+
+  // Google Books API Key.
+  const apiKey = "AIzaSyAV04ZReKi2EAOGsjkZUYFQ6ebmBnFErG0";
+
+  /* ---------------------------------------------
+     FUNCTION: fetchBooksRecommendations
+     Uses a random fun query to fetch up to 40 book results and displays them.
+  --------------------------------------------- */
+  function fetchBooksRecommendations() {
+    const randomQuery = getRandomFunQuery();
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(randomQuery)}&maxResults=40&orderBy=newest&key=${apiKey}`;
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const books = data.items || [];
+        displayBooks(books, "recommendations");
+      })
+      .catch(error => console.error("Error fetching recommendations:", error));
+  }
+
+  /* ---------------------------------------------
+     FUNCTION: searchBooks
+     Uses the provided query to fetch up to 40 book results and displays them.
+  --------------------------------------------- */
+  function searchBooks(query) {
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=40&orderBy=newest&key=${apiKey}`;
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const books = data.items || [];
+        displayBooks(books, "searchResults");
+      })
+      .catch(error => console.error("Error fetching search results:", error));
+  }
+
+  /* ---------------------------------------------
+     FUNCTION: displayBooks
+     Filters, selects, and displays up to 10 non‑blacklisted books in the given container.
+     A "View Book" button is added to each card that opens viewer.html with the book's ISBN.
+  --------------------------------------------- */
+  function displayBooks(books, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    
+    // Filter out blacklisted books.
+    const filteredBooks = books.filter(book => !isBlacklisted(book));
+    
+    // Shuffle the filtered results and select a diverse subset.
+    filteredBooks.sort(() => Math.random() - 0.5);
+    const selectedBooks = getDiverseSelection(filteredBooks, 10);
+    
+    // Create and append book cards.
+    selectedBooks.forEach(book => {
+      const info = book.volumeInfo;
+      const imageSrc = info.imageLinks ? info.imageLinks.thumbnail : "https://cdn-icons-png.flaticon.com/512/4/4259.png";
+      const infoLink = info.infoLink ? info.infoLink : "#";
+      const isbn = getBookISBN(info);
+      let viewButton;
+      // Use encodeURIComponent to ensure that the ISBN is properly URL-encoded.
+      if (isbn) {
+        viewButton = `<a href="viewer.html?isbn=${encodeURIComponent(isbn)}" class="btn btn-sm btn-info mt-2" target="_blank">View Book</a>`;
+      } else {
+        viewButton = `<button class="btn btn-sm btn-secondary mt-2" disabled>No Viewer Available</button>`;
+      }
+      const bookCard = document.createElement("div");
+      bookCard.classList.add("book-card", "col-md-4", "col-sm-6", "mb-4");
+      bookCard.innerHTML = `
+        <img src="${imageSrc}" alt="${info.title}" class="img-fluid">
+        <h3 class="h5 mt-2"><a href="${infoLink}" target="_blank">${info.title}</a></h3>
+        <p><strong>Author:</strong> ${info.authors ? info.authors.join(", ") : "Unknown"}</p>
+        ${viewButton}
+      `;
+      container.appendChild(bookCard);
+    });
+  }
+
+  // Initialize functions after the DOM is fully loaded.
+  document.addEventListener("DOMContentLoaded", function() {
+    // Load random recommendations on page load.
+    fetchBooksRecommendations();
+    // Set up the search button event listener.
+    document.getElementById("search").addEventListener("click", function() {
+      const query = document.getElementById("search-box").value;
+      if (query.trim().length > 0) {
+        searchBooks(query);
+      }
+    });
+  });
+</script>
+</body>
+</html>

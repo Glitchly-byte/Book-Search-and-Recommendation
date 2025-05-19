@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Viewer</title>
+  <!-- Load Google Books Embedded Viewer API -->
+  <script src="https://www.google.com/books/jsapi.js"></script>
+  <link href="https://fonts.googleapis.com/css?family=Righteous" rel="stylesheet">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" 
+        integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" 
+        crossorigin="anonymous">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    #viewerCanvas {
+      margin: auto;
+    }
+  </style>
+  <script>
+    // Load the Google Books API.
+    google.books.load();
+
+    // Helper function to get query parameters
+    function getQueryParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    // Initialize the viewer by reading the ISBN from the URL
+    function initializeViewer() {
+  const isbn = new URLSearchParams(window.location.search).get('isbn');
+  const viewerCanvas = document.getElementById('viewerCanvas');
+
+  // Ensure the viewer canvas is visible
+  viewerCanvas.style.display = "block"; 
+
+  if (isbn) {
+    var viewer = new google.books.DefaultViewer(viewerCanvas);
+    viewer.load('ISBN:' + isbn);
+
+
+  } else {
+    viewerCanvas.innerHTML = "<p class='text-center'>No ISBN provided.</p>";
+  }
+}
+
+
+    google.books.setOnLoadCallback(initializeViewer);
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-center mt-3">Book Viewer</h1>
+    <div id="viewerCanvas" style="width: 900px; height: 650px;"></div>
+  </div>
+</body>
+</html>
